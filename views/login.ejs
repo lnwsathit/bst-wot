@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Order Tracking - Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .error-message {
+            display: none;
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            border-left: 4px solid #c33;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .demo-info {
+            background: #f0f4ff;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #666;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .demo-info strong {
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>Work Order Tracking</h1>
+            <p>Management System</p>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+
+            <button type="submit" class="login-btn">Sign In</button>
+        </form>
+
+        <div class="demo-info">
+            <strong>Demo Credentials:</strong><br>
+            Username: <strong>admin</strong><br>
+            Password: <strong>admin123</strong>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMessage = document.getElementById('errorMessage');
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    window.location.href = data.redirectUrl;
+                } else {
+                    errorMessage.textContent = data.error;
+                    errorMessage.classList.add('show');
+                }
+            } catch (err) {
+                console.error('Login error:', err);
+                errorMessage.textContent = 'An error occurred during login';
+                errorMessage.classList.add('show');
+            }
+        });
+    </script>
+</body>
+
+</html>
