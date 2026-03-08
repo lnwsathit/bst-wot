@@ -173,6 +173,8 @@ app.get('/api/workorder/search/:query', async (req, res) => {
 });
 
 // Start Server
+const SERVER_IP = process.env.SERVER_IP || '192.168.1.139';
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on http://${SERVER_IP}:${PORT}`);
+    console.log(`Local access: http://localhost:${PORT}`);
 });
