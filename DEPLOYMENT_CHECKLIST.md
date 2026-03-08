@@ -15,19 +15,19 @@ This checklist ensures your local development environment and production server 
 ### Database Configuration
 
 - [x] **.env file exists** with correct database credentials
-- [x] **DB_PASSWORD updated** to `Mysql@2024`
+- [x] **DB_PASSWORD updated** to `<your_db_password>`
 - [x] **DB_USER** set to `root` (acceptable for local development)
 - [x] **DB_NAME** set to `workorder_tracking`
 - [ ] **MySQL root password updated** to match .env
   ```bash
   # Run this command to update MySQL root password:
   sudo mysql -u root
-  ALTER USER 'root'@'localhost' IDENTIFIED BY 'Mysql@2024';
+  ALTER USER 'root'@'localhost' IDENTIFIED BY '<your_db_password>';
   FLUSH PRIVILEGES;
   EXIT;
   
   # Test the connection:
-  mysql -u root -p'Mysql@2024' -e "SELECT 'Connection successful!' AS status;"
+  mysql -u root -p'<your_db_password>' -e "SELECT 'Connection successful!' AS status;"
   ```
 
 ### Application Configuration
@@ -103,25 +103,25 @@ This checklist ensures your local development environment and production server 
 
 ### Database Setup
 
-- [ ] **MySQL root password set** to `Mysql@2024`
+- [ ] **MySQL root password set** to `<your_db_password>`
   ```bash
   # If MySQL was just installed with socket auth:
   sudo mysql
-  ALTER USER 'root'@'localhost' IDENTIFIED BY 'Mysql@2024';
+  ALTER USER 'root'@'localhost' IDENTIFIED BY '<your_db_password>';
   FLUSH PRIVILEGES;
   EXIT;
   
   # Test connection:
-  mysql -u root -p'Mysql@2024' -e "SELECT 'Connected!' AS status;"
+  mysql -u root -p'<your_db_password>' -e "SELECT 'Connected!' AS status;"
   ```
 
 - [ ] **Application database user created** (recommended, not root)
   ```sql
   -- Connect as root:
-  mysql -u root -p'Mysql@2024'
+  mysql -u root -p'<your_db_password>'
   
   -- Create dedicated user:
-  CREATE USER 'workorder_user'@'localhost' IDENTIFIED BY 'Mysql@2024';
+  CREATE USER 'workorder_user'@'localhost' IDENTIFIED BY '<your_db_password>';
   GRANT ALL PRIVILEGES ON workorder_tracking.* TO 'workorder_user'@'localhost';
   FLUSH PRIVILEGES;
   EXIT;
@@ -129,7 +129,7 @@ This checklist ensures your local development environment and production server 
 
 - [ ] **Database created**
   ```sql
-  mysql -u root -p'Mysql@2024'
+  mysql -u root -p'<your_db_password>'
   CREATE DATABASE IF NOT EXISTS workorder_tracking CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
   EXIT;
   ```
@@ -137,20 +137,20 @@ This checklist ensures your local development environment and production server 
 - [ ] **Database schema imported**
   ```bash
   # If you have a schema.sql or dump file:
-  mysql -u workorder_user -p'Mysql@2024' workorder_tracking < schema.sql
+  mysql -u workorder_user -p'<your_db_password>' workorder_tracking < schema.sql
   
   # Or import from your local database:
   # On local machine:
-  mysqldump -u root -p'Mysql@2024' workorder_tracking > wot_schema.sql
+  mysqldump -u root -p'<your_db_password>' workorder_tracking > wot_schema.sql
   scp wot_schema.sql user@192.168.1.139:~/
   
   # On server:
-  mysql -u workorder_user -p'Mysql@2024' workorder_tracking < ~/wot_schema.sql
+  mysql -u workorder_user -p'<your_db_password>' workorder_tracking < ~/wot_schema.sql
   ```
 
 - [ ] **Database connection verified**
   ```bash
-  mysql -u workorder_user -p'Mysql@2024' workorder_tracking -e "SHOW TABLES;"
+  mysql -u workorder_user -p'<your_db_password>' workorder_tracking -e "SHOW TABLES;"
   ```
 
 ### Application Deployment
@@ -183,7 +183,7 @@ This checklist ensures your local development environment and production server 
   # /var/www/workorder-tracking/.env
   DB_HOST=localhost
   DB_USER=workorder_user        # Use dedicated user, not root!
-  DB_PASSWORD=Mysql@2024
+  DB_PASSWORD=<your_db_password>
   DB_NAME=workorder_tracking
   DB_PORT=3306
   
@@ -348,7 +348,7 @@ This checklist ensures your local development environment and production server 
 - [ ] **Database backups** scheduled
   ```bash
   # Add to crontab (crontab -e):
-  0 2 * * * /usr/bin/mysqldump -u workorder_user -p'Mysql@2024' workorder_tracking > /backups/wot-$(date +\%Y\%m\%d).sql
+  0 2 * * * /usr/bin/mysqldump -u workorder_user -p'<your_db_password>' workorder_tracking > /backups/wot-$(date +\%Y\%m\%d).sql
   
   # Create backup directory:
   sudo mkdir -p /backups
@@ -408,13 +408,13 @@ sudo tail -f /var/log/nginx/error.log
 
 ```bash
 # Backup database
-mysqldump -u workorder_user -p'Mysql@2024' workorder_tracking > backup.sql
+mysqldump -u workorder_user -p'<your_db_password>' workorder_tracking > backup.sql
 
 # Restore database
-mysql -u workorder_user -p'Mysql@2024' workorder_tracking < backup.sql
+mysql -u workorder_user -p'<your_db_password>' workorder_tracking < backup.sql
 
 # Check database size
-mysql -u workorder_user -p'Mysql@2024' -e "SELECT table_schema AS 'Database', ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'Size (MB)' FROM information_schema.tables WHERE table_schema='workorder_tracking';"
+mysql -u workorder_user -p'<your_db_password>' -e "SELECT table_schema AS 'Database', ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'Size (MB)' FROM information_schema.tables WHERE table_schema='workorder_tracking';"
 ```
 
 ---
@@ -431,7 +431,7 @@ mysql -u workorder_user -p'Mysql@2024' -e "SELECT table_schema AS 'Database', RO
 ### Database connection fails
 
 1. Verify MySQL is running: `sudo systemctl status mysql`
-2. Test connection: `mysql -u workorder_user -p'Mysql@2024' workorder_tracking`
+2. Test connection: `mysql -u workorder_user -p'<your_db_password>' workorder_tracking`
 3. Check .env credentials match MySQL user
 4. Review MySQL error log: `sudo tail -f /var/log/mysql/error.log`
 
@@ -468,8 +468,8 @@ After completing all steps above, verify:
 ## 📝 Notes
 
 **Current Configuration:**
-- Local .env: DB_USER=root, DB_PASSWORD=Mysql@2024, NODE_ENV=development
-- Production target: DB_USER=workorder_user (recommended), DB_PASSWORD=Mysql@2024, NODE_ENV=production
+- Local .env: DB_USER=root, DB_PASSWORD=<your_db_password>, NODE_ENV=development
+- Production target: DB_USER=workorder_user (recommended), DB_PASSWORD=<your_db_password>, NODE_ENV=production
 - Repository: All code committed and pushed to lnwsathit/bst-wot
 
 **Next Steps:**
