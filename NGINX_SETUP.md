@@ -1,102 +1,57 @@
 # Nginx Setup Guide for Work Order Tracking System
 
-This guide will help you set up nginx as a reverse proxy for the Work Order Tracking application.
+This guide will help you set up nginx as a reverse proxy for the Work Order Tracking application on Ubuntu 20.04.6 LTS.
 
 ## Prerequisites
 
+- Ubuntu 20.04.6 LTS server
 - Node.js application running on port 3000
-- Nginx installed on your system
+- Nginx 1.18.0 installed on your system
+- Server IP: 192.168.1.139
 
 ## Installation
 
-### Option 1: Install with Homebrew (macOS)
+### Ubuntu 20.04 LTS (Production)
 
 ```bash
-# Install Homebrew if not already installed
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# Update package lists
+sudo apt update
 
 # Install nginx
-brew install nginx
+sudo apt install -y nginx
+
+# Verify installation
+nginx -v  # should show: nginx version: nginx/1.18.0 (Ubuntu)
+
+# Check nginx status
+sudo systemctl status nginx
 ```
 
-### Option 2: Install with MacPorts (macOS)
+### macOS (Development Only)
 
 ```bash
+# Install with Homebrew
+brew install nginx
+
+# Or with MacPorts
 sudo port install nginx
 ```
 
-### Option 3: Manual Installation (macOS)
+## Configuration Setup for Ubuntu 20.04
 
-Download from [nginx.org](http://nginx.org/en/download.html) and follow installation instructions.
+### Step 1: Copy Configuration File
 
-## Configuration Setup
-
-### Step 1: Locate nginx Configuration Directory
-
-Find your nginx installation directory:
+The repository includes a pre-configured `nginx.conf` file optimized for Ubuntu deployment:
 
 ```bash
-# For Homebrew installation
-nginx -V 2>&1 | grep -o 'conf-path=[^ ]*'
+# Copy nginx configuration to sites-available
+sudo cp /var/www/workorder-tracking/nginx.conf /etc/nginx/sites-available/workorder-tracking
 
-# Common paths:
-# - Homebrew: /opt/homebrew/etc/nginx or /usr/local/etc/nginx
-# - MacPorts: /opt/local/etc/nginx
-# - Manual: /etc/nginx or /usr/local/nginx/conf
-```
+# Remove default site
+sudo rm -f /etc/nginx/sites-enabled/default
 
-### Step 2: Copy Configuration File
-
-**Important:** Before proceeding, update the file paths in `nginx.conf` to match your actual installation path if different from:
-```
-/Volumes/DATA/3. Education/Web Application/2. Tracking system/workorder-tracking/
-```
-
-Copy the configuration file:
-
-```bash
-# For Homebrew (create sites-available directory if it doesn't exist)
-mkdir -p /opt/homebrew/etc/nginx/sites-available
-cp nginx.conf /opt/homebrew/etc/nginx/sites-available/workorder-tracking
-
-# OR for standard nginx
-sudo cp nginx.conf /etc/nginx/sites-available/workorder-tracking
-```
-
-### Step 3: Enable the Site
-
-**For systems with sites-enabled (Ubuntu-style):**
-
-```bash
-# Create symbolic link
+# Enable the Work Order Tracking site
 sudo ln -s /etc/nginx/sites-available/workorder-tracking /etc/nginx/sites-enabled/
-
-# Ensure main nginx.conf includes sites-enabled
-# Add this line to /etc/nginx/nginx.conf in the http block:
-# include /etc/nginx/sites-enabled/*;
-```
-
-**For Homebrew nginx:**
-
-Edit `/opt/homebrew/etc/nginx/nginx.conf` and add inside the `http` block:
-
-```nginx
-include /opt/homebrew/etc/nginx/sites-available/*;
-```
-
-**Or use the config directly:**
-
-```bash
-# Replace the default nginx.conf
-cp nginx.conf /opt/homebrew/etc/nginx/nginx.conf
-```
-
-### Step 4: Create Log Directory
-
-```bash
-sudo mkdir -p /var/log/nginx
-sudo chown $(whoami) /var/log/nginx
-```
 
 ### Step 5: Test Configuration
 
@@ -127,37 +82,49 @@ Or use PM2 for process management:
 npm install -g pm2
 pm2 start server.js --name workorder-tracking
 pm2 save
-pm2 startup
 ```
 
-### Step 2: Start Nginx
+### Step 2: Test Configuration
 
-**Homebrew:**
 ```bash
-brew services start nginx
-# OR
-nginx
+# Test nginx configuration syntax
+sudo nginx -t
+
+# Expected output:
+# nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+# nginx: configuration file /etc/nginx/nginx.conf test is successful
 ```
 
-**Manual:**
+### Step 3: Start/Restart Nginx
+
 ```bash
-sudo nginx
+# Start nginx (if not running)
+sudo systemctl start nginx
+
+# Restart nginx to apply new configuration
+sudo systemctl restart nginx
+
+# Enable nginx to start on boot
+sudo systemctl enable nginx
+
+# Check nginx status
+sudo systemctl status nginx
 ```
 
-### Step 3: Verify Services Running
+### Step 4: Verify Services Running
 
 ```bash
 # Check nginx is running
-ps aux | grep nginx
+sudo systemctl status nginx
 
-# Check Node.js is running
-ps aux | grep node
+# Check Node.js is running (via PM2)
+pm2 status
 
 # Check port 80 is listening
-lsof -i :80
+sudo ss -tlnp | grep :80
 
-# Check Node.js port 3000 is listening
-lsof -i :3000
+# Check Node.js port 3000 is listening (internal only)
+sudo ss -tlnp | grep :3000
 ```
 
 ## Testing
@@ -166,123 +133,196 @@ lsof -i :3000
 
 Open your browser and navigate to:
 ```
-http://localhost
+http://192.168.1.139
 ```
 
-You should see the Work Order Tracking System login page.
+You should see the Work Order Tracking System public search page.
 
-### Test Static Files
+### Test Admin Login
 
 ```
-http://localhost/css/style.css
-http://localhost/js/script.js
+http://192.168.1.139/login
+```
+
+### Test from Server (localhost)
+
+```bash
+# Test direct Node.js connection
+curl http://127.0.0.1:3000/
+
+# Test via Nginx proxy
+curl http://localhost/
+
+# Test public IPv4
+curl http://192.168.1.139/
 ```
 
 ### Test API Endpoints
 
 ```bash
-# Test health endpoint (if implemented)
-curl http://localhost/health
-
 # Test public search
-curl http://localhost/api/workorder/search/QT
+curl http://192.168.1.139/api/workorder/search/QT
+
+# View response with formatting
+curl -s http://192.168.1.139/api/workorder/search/QT | json_pp
 ```
 
-## Nginx Management Commands
+## Nginx Management Commands (Ubuntu 20.04)
 
-### Homebrew Installation
+### Service Management
 
 ```bash
 # Start nginx
-brew services start nginx
+sudo systemctl start nginx
 
 # Stop nginx
-brew services stop nginx
+sudo systemctl stop nginx
 
-# Restart nginx
-brew services restart nginx
+# Restart nginx (applies new configuration)
+sudo systemctl restart nginx
 
 # Reload configuration without downtime
-nginx -s reload
+sudo systemctl reload nginx
+
+# Check status
+sudo systemctl status nginx
+
+# Enable on boot
+sudo systemctl enable nginx
+
+# Disable on boot
+sudo systemctl disable nginx
 ```
 
-### Manual Installation
+### Configuration Testing
 
 ```bash
-# Start
-sudo nginx
+# Test configuration without applying
+sudo nginx -t
 
-# Stop
-sudo nginx -s stop
+# Test and reload if successful
+sudo nginx -t && sudo systemctl reload nginx
+```
 
-# Quick shutdown
-sudo nginx -s quit
+### View Logs
 
-# Reload configuration
-sudo nginx -s reload
+```bash
+# Access logs (real-time)
+sudo tail -f /var/log/nginx/workorder-tracking-access.log
 
-# Test configuration
-nginx -t
+# Error logs (real-time)
+sudo tail -f /var/log/nginx/workorder-tracking-error.log
+
+# View last 50 lines of errors
+sudo tail -50 /var/log/nginx/workorder-tracking-error.log
 ```
 
 ## Troubleshooting
 
 ### Port 80 Already in Use
 
-If port 80 is already in use, edit `nginx.conf` and change:
-```nginx
-listen 80;
-```
-to another port like:
-```nginx
-listen 8080;
+Check what's using port 80:
+```bash
+sudo ss -tlnp | grep :80
+sudo lsof -i :80
 ```
 
-Then access via `http://localhost:8080`
+If Apache is running:
+```bash
+sudo systemctl stop apache2
+sudo systemctl disable apache2
+```
 
 ### Permission Denied Errors
 
+Ensure correct file permissions for Ubuntu:
 ```bash
-# Give nginx permission to access files
-sudo chown -R $(whoami) /Volumes/DATA/3.\ Education/Web\ Application/2.\ Tracking\ system/workorder-tracking/public
-sudo chown -R $(whoami) /Volumes/DATA/3.\ Education/Web\ Application/2.\ Tracking\ system/workorder-tracking/uploads
+# Set proper ownership for application directory
+sudo chown -R workorder_app:workorder_app /var/www/workorder-tracking
+
+# Ensure nginx can read static files (755 for directories, 644 for files)
+sudo chmod 755 /var/www/workorder-tracking/public
+sudo chmod -R 644 /var/www/workorder-tracking/public/*
+sudo find /var/www/workorder-tracking/public -type d -exec chmod 755 {} \;
+
+# Ensure nginx can read uploaded files
+sudo chmod 755 /var/www/workorder-tracking/uploads
+```
+
+If you see permission errors in logs, check SELinux/AppArmor settings:
+```bash
+# Check AppArmor status (Ubuntu default)
+sudo aa-status
+
+# If needed, put nginx in complain mode temporarily
+sudo aa-complain /usr/sbin/nginx
 ```
 
 ### Cannot Connect to Backend
 
 Check that Node.js is running on port 3000:
 ```bash
-curl http://localhost:3000
+# Test direct connection to Node.js
+curl http://127.0.0.1:3000/
+
+# Check PM2 status
+pm2 status workorder-tracking
+
+# View PM2 logs
+pm2 logs workorder-tracking
 ```
 
 If not working, start the Node.js server:
 ```bash
-cd /Volumes/DATA/3.\ Education/Web\ Application/2.\ Tracking\ system/workorder-tracking
-node server.js
-```
-
-### View Nginx Logs
-
-```bash
-# Access logs
-tail -f /var/log/nginx/workorder-tracking-access.log
-
-# Error logs
-tail -f /var/log/nginx/workorder-tracking-error.log
+cd /var/www/workorder-tracking
+pm2 start ecosystem.config.js --env production
 ```
 
 ### 502 Bad Gateway Error
 
 This usually means nginx cannot connect to the Node.js backend. Verify:
-1. Node.js server is running on port 3000
-2. No firewall blocking localhost connections
-3. Check nginx error logs for details
+
+1. **Node.js server is running:**
+   ```bash
+   pm2 status
+   sudo ss -tlnp | grep :3000
+   ```
+
+2. **Check nginx error logs for details:**
+   ```bash
+   sudo tail -50 /var/log/nginx/workorder-tracking-error.log
+   ```
+
+3. **Verify proxy_pass setting:**
+   ```bash
+   grep "proxy_pass" /etc/nginx/sites-available/workorder-tracking
+   # Should show: proxy_pass http://127.0.0.1:3000;
+   ```
+
+4. **Restart both services:**
+   ```bash
+   pm2 restart workorder-tracking
+   sudo systemctl restart nginx
+   ```
+
+### 403 Forbidden Error
+
+Check file permissions and nginx user:
+```bash
+# Check nginx user
+ps aux | grep nginx | grep -v grep
+
+# Usually runs as www-data on Ubuntu
+# Ensure www-data can read application files
+sudo chown -R www-data:www-data /var/www/workorder-tracking/public
+sudo chown -R www-data:www-data /var/www/workorder-tracking/uploads
+```
 
 ## Performance Optimization (Optional)
 
 ### Enable Gzip Compression
 
-Add to `nginx.conf` in the `http` block:
+Add to `/etc/nginx/nginx.conf` in the `http` block:
 
 ```nginx
 gzip on;
@@ -300,22 +340,89 @@ The configuration already includes basic caching for static files. For additiona
 proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=app_cache:10m max_size=100m inactive=60m;
 ```
 
-## Production Deployment Checklist
+## Production Deployment Checklist (Ubuntu 20.04)
 
-- [ ] Install nginx
-- [ ] Copy and configure nginx.conf with correct paths
-- [ ] Test configuration with `nginx -t`
-- [ ] Start Node.js with PM2 for auto-restart
-- [ ] Start nginx service
-- [ ] Test all endpoints (login, work orders, customers, upload)
-- [ ] Set up SSL certificate for HTTPS (recommended)
-- [ ] Configure firewall rules
-- [ ] Set up log rotation
-- [ ] Monitor logs regularly
-- [ ] Set up automated backups for MySQL database
+- [ ] Ubuntu 20.04.6 LTS server ready
+- [ ] Node.js v20.20.1 installed
+- [ ] MySQL 8.0.42 installed and configured
+- [ ] Nginx 1.18.0 installed
+- [ ] PM2 6.0.14 installed globally
+- [ ] Application deployed to `/var/www/workorder-tracking`
+- [ ] `.env` file configured with database credentials
+- [ ] Copy nginx.conf to `/etc/nginx/sites-available/workorder-tracking`
+- [ ] Enable site with symlink to `/etc/nginx/sites-enabled/`
+- [ ] Test configuration with `sudo nginx -t`
+- [ ] Start Node.js with `pm2 start ecosystem.config.js --env production`
+- [ ] Configure PM2 startup script: `pm2 startup systemd`
+- [ ] Save PM2 process list: `pm2 save`
+- [ ] Start nginx: `sudo systemctl start nginx`
+- [ ] Enable nginx on boot: `sudo systemctl enable nginx`
+- [ ] Test application at `http://192.168.1.139`
+- [ ] Test admin login at `http://192.168.1.139/login`
+- [ ] Configure UFW firewall (ports 22, 80, 443)
+- [ ] Set up SSL certificate with Let's Encrypt (optional)
+- [ ] Configure log rotation: `/etc/logrotate.d/nginx`
+- [ ] Set up automated MySQL backups
+- [ ] Monitor logs: `pm2 monit` and nginx logs
+
+## SSL/TLS Setup with Let's Encrypt (Optional)
+
+For production deployment with HTTPS:
+
+```bash
+# Install certbot
+sudo apt install -y certbot python3-certbot-nginx
+
+# Obtain certificate (replace with your domain)
+sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+
+# Test automatic renewal
+sudo certbot renew --dry-run
+
+# Certificate will auto-renew before expiration
+```
+
+## Firewall Configuration (UFW)
+
+```bash
+# Allow SSH
+sudo ufw allow 22/tcp
+
+# Allow HTTP
+sudo ufw allow 80/tcp
+
+# Allow HTTPS
+sudo ufw allow 443/tcp
+
+# Enable firewall
+sudo ufw enable
+
+# Check status
+sudo ufw status
+```
+
+## System Information
+
+Target Production Server:
+- **OS:** Ubuntu 20.04.6 LTS (ubuntu-20.04.6-live-server-amd64)
+- **Server IP:** 192.168.1.139
+- **Nginx:** 1.18.0 (Ubuntu)
+- **PM2:** 6.0.14
+- **Git:** 2.25.1
+- **Node.js:** v20.20.1
+- **npm:** 10.8.2
+- **MySQL:** 8.0.42 for Linux on x86_64
+
+Application Access:
+- **Public:** http://192.168.1.139
+- **Admin Login:** http://192.168.1.139/login
+- **Default Credentials:** admin / admin123 (change immediately!)
 
 ## Additional Resources
 
 - [Nginx Documentation](http://nginx.org/en/docs/)
-- [Reverse Proxy Guide](http://nginx.org/en/docs/http/ngx_http_proxy_module.html)
+- [Nginx Reverse Proxy Guide](http://nginx.org/en/docs/http/ngx_http_proxy_module.html)
 - [PM2 Process Manager](https://pm2.keymetrics.io/)
+- [PM2 Startup Script](https://pm2.keymetrics.io/docs/usage/startup/)
+- [Let's Encrypt SSL](https://letsencrypt.org/)
+- [Ubuntu Server Guide](https://ubuntu.com/server/docs)

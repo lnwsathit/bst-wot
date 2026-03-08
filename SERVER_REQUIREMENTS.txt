@@ -28,15 +28,15 @@ SOFTWARE REQUIREMENTS
 
 1. Node.js Runtime
    ---------------
-   Version:     Node.js 16.x or higher (18.x LTS recommended)
-   npm:         8.x or higher (comes with Node.js)
+   Version:     Node.js 16.x or higher (20.x LTS recommended for production)
+   npm:         8.x or higher (10.x recommended, comes with Node.js)
    
-   Installation (Ubuntu/Debian):
-   $ curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+   Installation (Ubuntu 20.04):
+   $ curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
    $ sudo apt-get install -y nodejs
    
    Installation (CentOS/RHEL):
-   $ curl -sL https://rpm.nodesource.com/setup_18.x | sudo bash -
+   $ curl -sL https://rpm.nodesource.com/setup_20.x | sudo bash -
    $ sudo yum install -y nodejs
 
 2. MySQL Database Server
