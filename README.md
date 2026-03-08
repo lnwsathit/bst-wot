@@ -54,9 +54,9 @@ workorder-tracking/
 ## Installation
 
 ### Prerequisites
-- Node.js (v14 or higher)
-- MySQL (v5.7 or higher)
-- npm
+- Node.js (v16.x or higher, v20.x LTS recommended)
+- MySQL (v8.0 or higher)
+- npm (v8.x or higher)
 
 ### Setup Steps
 
@@ -84,16 +84,24 @@ workorder-tracking/
    ```
 
 4. **Configure Environment Variables**
-   - Edit `.env` file with your database credentials:
+   - Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+   - Edit `.env` file with your production database credentials:
    ```
    DB_HOST=localhost
-   DB_USER=root
-   DB_PASSWORD=your_password
+   DB_USER=workorder_user
+   DB_PASSWORD=your_secure_password_here
    DB_NAME=workorder_tracking
    DB_PORT=3306
    PORT=3000
-   SESSION_SECRET=your_secret_key
-   NODE_ENV=development
+   SESSION_SECRET=your_random_secure_string_of_at_least_32_characters
+   NODE_ENV=production
+   ```
+   - **Important**: Generate a strong SESSION_SECRET:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
 
 5. **Start the server**
@@ -225,18 +233,249 @@ CREATE TABLE work_orders (
 - All admin operations require authentication and admin role
 - CORS enabled for cross-origin requests
 
+## Production Deployment (Ubuntu 20.04 LTS)
+
+### Prerequisites
+- Ubuntu 20.04.6 LTS
+- Node.js v16.x or higher (tested with v20.20.1)
+- MySQL 8.0 or higher
+- Nginx 1.18+
+- PM2 6.0+
+
+### Step-by-Step Deployment
+
+1. **Prepare Server Environment**
+   ```bash
+   # Update system packages
+   sudo apt update && sudo apt upgrade -y
+
+   # Create application user
+   sudo useradd -m -s /bin/bash workorder_app
+   
+   # Create application directory
+   sudo mkdir -p /var/www/workorder-tracking
+   sudo chown -R workorder_app:workorder_app /var/www/workorder-tracking
+   ```
+
+2. **Install Node.js & npm**
+   ```bash
+   # Using NodeSource repository (recommended for Node.js 20)
+   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   sudo apt install -y nodejs
+
+   # Verify installation
+   node -v  # should show v20.20.1 or higher
+   npm -v   # should show 10.x or higher
+   ```
+
+3. **Install and Configure MySQL**
+   ```bash
+   sudo apt install -y mysql-server
+
+   # Secure MySQL installation
+   sudo mysql_secure_installation
+
+   # Create database and user
+   sudo mysql -u root -p << EOF
+   CREATE DATABASE IF NOT EXISTS workorder_tracking;
+   CREATE USER 'workorder_user'@'localhost' IDENTIFIED BY 'your_secure_password';
+   GRANT ALL PRIVILEGES ON workorder_tracking.* TO 'workorder_user'@'localhost';
+   FLUSH PRIVILEGES;
+   EOF
+
+   # Load database schema
+   sudo mysql -u workorder_user -p workorder_tracking < /var/www/workorder-tracking/config/schema.sql
+   ```
+
+4. **Deploy Application Code**
+   ```bash
+   cd /var/www/workorder-tracking
+   sudo git clone https://github.com/lnwsathit/bst-wot.git .
+
+   # Set ownership
+   sudo chown -R workorder_app:workorder_app /var/www/workorder-tracking
+   ```
+
+5. **Install Dependencies**
+   ```bash
+   cd /var/www/workorder-tracking
+   npm install --production
+
+   # Verify dependencies
+   npm list
+   ```
+
+6. **Configure Environment**
+   ```bash
+   # Copy environment template
+   cp .env.example .env
+
+   # Edit .env with actual values
+   sudo nano .env
+   ```
+   
+   **Example .env file:**
+   ```
+   DB_HOST=localhost
+   DB_USER=workorder_user
+   DB_PASSWORD=your_secure_password
+   DB_NAME=workorder_tracking
+   DB_PORT=3306
+   PORT=3000
+   SESSION_SECRET=your_generated_random_string_here
+   NODE_ENV=production
+   ```
+
+   **Generate secure SESSION_SECRET:**
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+
+7. **Install and Configure PM2**
+   ```bash
+   sudo npm install -g pm2
+
+   # Start application with PM2
+   cd /var/www/workorder-tracking
+   pm2 start ecosystem.config.js --env production
+
+   # Save PM2 process list
+   pm2 save
+
+   # Create PM2 startup script
+   sudo pm2 startup systemd -u workorder_app --hp /home/workorder_app
+   ```
+
+8. **Install and Configure Nginx**
+   ```bash
+   sudo apt install -y nginx
+
+   # Copy nginx configuration
+   sudo cp /var/www/workorder-tracking/nginx.conf /etc/nginx/sites-available/workorder-tracking
+
+   # Enable site
+   sudo ln -s /etc/nginx/sites-available/workorder-tracking /etc/nginx/sites-enabled/
+
+   # Disable default site
+   sudo rm -f /etc/nginx/sites-enabled/default
+
+   # Test configuration
+   sudo nginx -t
+
+   # Start and enable nginx
+   sudo systemctl start nginx
+   sudo systemctl enable nginx
+   ```
+
+9. **Setup Log Directory**
+   ```bash
+   # Create PM2 log directory
+   sudo mkdir -p /var/log/pm2
+   sudo chown -R workorder_app:workorder_app /var/log/pm2
+
+   # Verify nginx logs
+   sudo mkdir -p /var/log/nginx
+   sudo chown -R www-data:www-data /var/log/nginx
+   ```
+
+10. **Setup SSL/TLS (Recommended)**
+    ```bash
+    # Using Let's Encrypt with Certbot
+    sudo apt install -y certbot python3-certbot-nginx
+
+    # Generate certificate (replace domain.com with your domain)
+    sudo certbot certonly --nginx -d domain.com -d www.domain.com
+
+    # Update nginx config to use SSL (uncomment HTTPS section in nginx.conf)
+    # Then restart nginx
+    sudo systemctl restart nginx
+    ```
+
+11. **Configure Firewall**
+    ```bash
+    sudo ufw allow 22/tcp   # SSH
+    sudo ufw allow 80/tcp   # HTTP
+    sudo ufw allow 443/tcp  # HTTPS
+    sudo ufw enable
+    ```
+
+12. **Test Application**
+    ```bash
+    # Check PM2 status
+    pm2 status
+
+    # Check nginx status
+    sudo systemctl status nginx
+
+    # Test connectivity
+    curl http://localhost/
+    curl http://127.0.0.1:3000/
+
+    # View PM2 logs
+    pm2 logs workorder-tracking
+    ```
+
+### Post-Deployment Checklist
+
+- [ ] MySQL database created and populated with schema
+- [ ] Application dependencies installed (npm install --production)
+- [ ] .env file configured with secure passwords and SESSION_SECRET
+- [ ] PM2 configured and running application
+- [ ] PM2 startup script created for system boot
+- [ ] Nginx configured and routing to Node.js (127.0.0.1:3000)
+- [ ] Nginx performance settings optimized (gzip, caching)
+- [ ] SSL/TLS certificate installed (for production)
+- [ ] Firewall rules configured
+- [ ] Log files configured and rotation setup
+- [ ] Backup procedures documented
+- [ ] System monitoring configured
+
+### Maintenance Commands
+
+```bash
+# View application status
+pm2 status
+
+# View application logs
+pm2 logs workorder-tracking
+
+# Restart application
+pm2 restart workorder-tracking
+
+# Reload nginx configuration
+sudo systemctl reload nginx
+
+# Monitor server resources
+top
+htop
+
+# Check database size
+mysql -u workorder_user -p -e "SELECT table_name, ROUND(((data_length + index_length) / 1024 / 1024), 2) AS size_mb FROM information_schema.TABLES WHERE table_schema = 'workorder_tracking';"
+```
+
+### Updating Application
+
+```bash
+cd /var/www/workorder-tracking
+git pull origin main
+npm install --production
+pm2 restart workorder-tracking
+```
+
 ## Production Deployment
 
 Before deploying to production:
 
 1. Change `SESSION_SECRET` in `.env` to a secure random string
-2. Set `secure: true` in session cookie for HTTPS
+2. Secure cookie is automatically enabled when `NODE_ENV=production`
 3. Use environment-specific `.env` files
 4. Set `NODE_ENV=production`
 5. Use a production-grade MySQL server
-6. Implement SSL/TLS certificates
-7. Add rate limiting
-8. Configure backup procedures
+6. Implement SSL/TLS certificates (Let's Encrypt recommended)
+7. Add rate limiting for API endpoints
+8. Configure backup procedures for database
+9. Monitor application health and logs
+10. Setup error tracking and alerting
 
 ## Troubleshooting
 
