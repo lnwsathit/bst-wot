@@ -1,0 +1,306 @@
+================================================================================
+SERVER-SIDE SYSTEM REQUIREMENTS FOR WORK ORDER TRACKING (WOT) SYSTEM
+================================================================================
+
+================================================================================
+MINIMUM HARDWARE REQUIREMENTS
+================================================================================
+
+CPU:        2 cores / 2 GHz or higher
+RAM:        2 GB minimum, 4 GB recommended
+Storage:    10 GB minimum
+            - 5 GB for OS and applications
+            - 2 GB for database
+            - 3 GB for uploaded files (PDF attachments)
+            - Additional space as data grows
+
+================================================================================
+OPERATING SYSTEM
+================================================================================
+
+Linux:              Ubuntu 20.04/22.04 LTS, CentOS 7/8, Debian 10/11
+macOS:              10.15+ (development/testing)
+Windows Server:     2016/2019/2022 (with adjustments)
+
+================================================================================
+SOFTWARE REQUIREMENTS
+================================================================================
+
+1. Node.js Runtime
+   ---------------
+   Version:     Node.js 16.x or higher (18.x LTS recommended)
+   npm:         8.x or higher (comes with Node.js)
+   
+   Installation (Ubuntu/Debian):
+   $ curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+   $ sudo apt-get install -y nodejs
+   
+   Installation (CentOS/RHEL):
+   $ curl -sL https://rpm.nodesource.com/setup_18.x | sudo bash -
+   $ sudo yum install -y nodejs
+
+2. MySQL Database Server
+   ---------------------
+   Version:         MySQL 8.0+ or MariaDB 10.5+
+   Storage Engine:  InnoDB
+   Character Set:   UTF-8 (utf8mb4)
+   Max Connections: 100+
+   
+   Installation (Ubuntu/Debian):
+   $ sudo apt-get install mysql-server
+   
+   Installation (CentOS/RHEL):
+   $ sudo yum install mysql-server
+
+3. Nginx Web Server (Production - Recommended)
+   -------------------------------------------
+   Version:     1.18+ or higher
+   Purpose:     Reverse proxy, SSL termination, static file serving
+   
+   Installation (Ubuntu/Debian):
+   $ sudo apt-get install nginx
+   
+   Installation (CentOS/RHEL):
+   $ sudo yum install nginx
+
+4. Process Manager (Production - Recommended)
+   ------------------------------------------
+   Tool:        PM2
+   Purpose:     Node.js process management, auto-restart, logging, monitoring
+   
+   Installation:
+   $ npm install -g pm2
+
+================================================================================
+NETWORK REQUIREMENTS
+================================================================================
+
+Required Ports:
+   80      HTTP - Web traffic
+   443     HTTPS - Secure web traffic (production)
+   3000    Application - Node.js server (internal only)
+   3306    MySQL - Database server (localhost or internal network)
+
+Firewall Configuration:
+   # Allow HTTP/HTTPS
+   $ sudo ufw allow 80/tcp
+   $ sudo ufw allow 443/tcp
+   
+   # Block direct access to Node.js and MySQL from external
+   $ sudo ufw deny 3000/tcp
+   $ sudo ufw deny 3306/tcp
+
+================================================================================
+DATABASE REQUIREMENTS
+================================================================================
+
+Database Name:      workorder_tracking
+Tables:             users, work_orders, customers
+Character Set:      utf8mb4
+Collation:          utf8mb4_unicode_ci
+
+Estimated Size:
+   Initial:     ~5 MB
+   Growth:      ~100 MB per 1000 work orders (with metadata)
+
+================================================================================
+ENVIRONMENT CONFIGURATION
+================================================================================
+
+Required Environment Variables (.env):
+
+   DB_HOST=localhost
+   DB_USER=workorder_user
+   DB_PASSWORD=<secure_password>
+   DB_NAME=workorder_tracking
+   SESSION_SECRET=<random_64_character_string>
+   PORT=3000
+   NODE_ENV=production
+
+================================================================================
+SECURITY REQUIREMENTS
+================================================================================
+
+1. SSL/TLS Certificate (Production)
+   --------------------------------
+   - Let's Encrypt (free) or commercial certificate
+   - Required for HTTPS
+
+2. Database Security
+   -----------------
+   - Dedicated database user with limited privileges
+   - Strong password (16+ characters)
+   - Access restricted to localhost or internal network
+
+3. File System Permissions
+   -----------------------
+   # Application files
+   $ chmod 755 /path/to/workorder-tracking
+   $ chmod 644 /path/to/workorder-tracking/*.js
+   
+   # Upload directory (writable)
+   $ chmod 755 /path/to/workorder-tracking/uploads
+   
+   # Environment file (restricted)
+   $ chmod 600 /path/to/workorder-tracking/.env
+
+4. Session Security
+   ----------------
+   - Secure session secret (64+ character random string)
+   - httpOnly cookies enabled
+   - secure flag for HTTPS environments
+
+================================================================================
+SOFTWARE DEPENDENCIES (Auto-installed via npm)
+================================================================================
+
+   express:            ^4.18.2
+   mysql2:             ^3.6.0
+   express-session:    ^1.17.3
+   bcryptjs:           ^2.4.3
+   multer:             ^1.4.5-lts.1
+   ejs:                ^3.1.9
+
+================================================================================
+OPTIONAL BUT RECOMMENDED
+================================================================================
+
+1. Git (for deployment)
+   $ sudo apt-get install git  # Ubuntu/Debian
+   $ sudo yum install git      # CentOS/RHEL
+
+2. Log Management
+   - System logs: /var/log/nginx/
+   - Application logs: PM2 or custom logging
+   - Rotation: logrotate
+
+3. Backup System
+   - Daily MySQL dumps
+   - Weekly full system backup
+   - Upload files backup
+
+4. Monitoring Tools
+   - PM2 monitoring dashboard
+   - MySQL performance monitoring
+   - Server resource monitoring (htop, netdata)
+
+================================================================================
+PERFORMANCE TUNING (Production)
+================================================================================
+
+Node.js:
+   # Run with PM2 cluster mode (use all CPU cores)
+   $ pm2 start server.js -i max --name workorder-tracking
+
+MySQL Configuration (/etc/mysql/my.cnf):
+   [mysqld]
+   innodb_buffer_pool_size = 1G
+   max_connections = 200
+   query_cache_size = 64M
+
+Nginx Configuration:
+   - Enable gzip compression
+   - Static file caching (30 days)
+   - Connection pooling
+
+================================================================================
+INSTALLATION CHECKLIST
+================================================================================
+
+[ ] Operating system updated
+[ ] Node.js 16+ installed
+[ ] MySQL 8.0+ installed and secured
+[ ] Nginx installed and configured
+[ ] PM2 installed globally
+[ ] Database created with schema
+[ ] Default admin user created
+[ ] .env file configured
+[ ] File permissions set correctly
+[ ] Firewall configured
+[ ] SSL certificate installed (production)
+[ ] Backups configured
+[ ] Application tested and running
+
+================================================================================
+QUICK DEPLOYMENT COMMANDS
+================================================================================
+
+# 1. Install dependencies
+$ cd /path/to/workorder-tracking
+$ npm install --production
+
+# 2. Set up database
+$ mysql -u root -p < config/schema.sql
+
+# 3. Configure environment
+$ cp .env.example .env
+$ nano .env  # Edit database credentials
+
+# 4. Start application with PM2
+$ pm2 start server.js --name workorder-tracking
+$ pm2 save
+$ pm2 startup
+
+# 5. Configure and start nginx
+$ sudo cp nginx.conf /etc/nginx/sites-available/workorder-tracking
+$ sudo ln -s /etc/nginx/sites-available/workorder-tracking /etc/nginx/sites-enabled/
+$ sudo nginx -t
+$ sudo systemctl start nginx
+$ sudo systemctl enable nginx
+
+================================================================================
+ESTIMATED SERVER COSTS (Cloud Hosting)
+================================================================================
+
+Digital Ocean:      $12-24/month (2GB-4GB RAM droplet)
+AWS EC2:            t3.small - $15-20/month
+Linode:             $12-24/month (2GB-4GB RAM)
+VPS Thailand:       500-1500 THB/month
+
+Recommendation:
+   For small to medium business with ~100-500 work orders/month,
+   a 2GB RAM VPS is sufficient.
+
+================================================================================
+TECHNOLOGY STACK SUMMARY
+================================================================================
+
+Backend Framework:
+   - Node.js (Runtime environment)
+   - Express.js (Web application framework)
+   - MySQL (Database with mysql2/promise driver)
+   - express-session (Session management & authentication)
+   - Multer (File upload handling for PDF attachments)
+   - bcryptjs (Password hashing)
+
+Frontend Framework:
+   - EJS (Embedded JavaScript - server-side templating)
+   - jQuery 3.6.0 (JavaScript library)
+   - DataTables 1.13.4 (Interactive table plugin)
+   - Select2 4.1.0 (Enhanced dropdown/select boxes)
+   - Vanilla JavaScript (Fetch API for AJAX requests)
+
+Deployment/Infrastructure:
+   - Nginx (Reverse proxy server)
+   - PM2 (Process manager)
+   - Git (Version control)
+   - GitHub (Code hosting)
+
+Architecture:
+   - MVC-style structure
+   - RESTful API endpoints
+   - Session-based authentication with role-based access control (Admin/User)
+   - Middleware pattern for authentication and authorization
+
+================================================================================
+SUPPORT & DOCUMENTATION
+================================================================================
+
+Project Repository:     https://github.com/lnwsathit/bst-wot
+Nginx Setup Guide:      See NGINX_SETUP.md
+Database Schema:        See config/schema.sql
+Environment Template:   See .env.example
+
+================================================================================
+END OF DOCUMENT
+================================================================================
