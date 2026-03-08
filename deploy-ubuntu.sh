@@ -111,20 +111,53 @@ print_status "Node dependencies installed"
 
 echo ""
 echo -e "${YELLOW}Step 8: Setup MySQL Database${NC}"
-read -sp "Enter MySQL root password: " MYSQL_ROOT_PASSWORD
-echo ""
-read -sp "Enter password for $DB_USER: " DB_PASSWORD
-echo ""
 
-mysql -u root -p"$MYSQL_ROOT_PASSWORD" << EOF
+# Test MySQL connection - first without password (fresh install default)
+if sudo mysql -u root -e "SELECT 1" &>/dev/null; then
+    print_info "MySQL root access confirmed (no password required)"
+    
+    read -sp "Enter password for new '$DB_USER' database user: " DB_PASSWORD
+    echo ""
+    
+    # Create database and user without root password
+    sudo mysql -u root << EOF
 CREATE DATABASE IF NOT EXISTS $DB_NAME;
 CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
 GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost';
 FLUSH PRIVILEGES;
 EOF
+    
+    # Load schema
+    sudo mysql -u $DB_USER -p"$DB_PASSWORD" $DB_NAME < $APP_PATH/config/schema.sql
+    print_status "Database created and schema loaded"
 
-mysql -u $DB_USER -p"$DB_PASSWORD" $DB_NAME < $APP_PATH/config/schema.sql
-print_status "Database created and schema loaded"
+else
+    # Try with password prompt if no-password didn't work
+    print_info "Attempting MySQL connection with password..."
+    read -sp "Enter MySQL root password: " MYSQL_ROOT_PASSWORD
+    echo ""
+    
+    read -sp "Enter password for new '$DB_USER' database user: " DB_PASSWORD
+    echo ""
+    
+    # Create database and user with root password
+    mysql -u root -p"$MYSQL_ROOT_PASSWORD" << EOF
+CREATE DATABASE IF NOT EXISTS $DB_NAME;
+CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
+GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+    
+    if [ $? -ne 0 ]; then
+        print_error "MySQL authentication failed!"
+        print_info "Please verify your root password and try again."
+        exit 1
+    fi
+    
+    # Load schema
+    mysql -u $DB_USER -p"$DB_PASSWORD" $DB_NAME < $APP_PATH/config/schema.sql
+    print_status "Database created and schema loaded"
+fi
 
 echo ""
 echo -e "${YELLOW}Step 9: Configure Environment Variables${NC}"

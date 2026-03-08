@@ -272,11 +272,9 @@ CREATE TABLE work_orders (
    ```bash
    sudo apt install -y mysql-server
 
-   # Secure MySQL installation
-   sudo mysql_secure_installation
-
-   # Create database and user
-   sudo mysql -u root -p << EOF
+   # On fresh Ubuntu 20.04, MySQL root requires sudo without password:
+   # Try the socket connection first (most common):
+   sudo mysql -u root << 'EOF'
    CREATE DATABASE IF NOT EXISTS workorder_tracking;
    CREATE USER 'workorder_user'@'localhost' IDENTIFIED BY 'your_secure_password';
    GRANT ALL PRIVILEGES ON workorder_tracking.* TO 'workorder_user'@'localhost';
@@ -285,6 +283,31 @@ CREATE TABLE work_orders (
 
    # Load database schema
    sudo mysql -u workorder_user -p workorder_tracking < /var/www/workorder-tracking/config/schema.sql
+   
+   # Verify the new user works
+   mysql -u workorder_user -p -e "SELECT DATABASE();"
+   ```
+
+   **If you get ERROR 1045 (Access denied):**
+   
+   ```bash
+   # Option 1: Use sudo (Ubuntu 20.04 default for root)
+   sudo mysql -u root
+   
+   # Then in MySQL shell, create the user:
+   # CREATE DATABASE IF NOT EXISTS workorder_tracking;
+   # CREATE USER 'workorder_user'@'localhost' IDENTIFIED BY 'your_password';
+   # GRANT ALL PRIVILEGES ON workorder_tracking.* TO 'workorder_user'@'localhost';
+   # FLUSH PRIVILEGES;
+   # EXIT;
+   
+   # Option 2: If fresh MySQL setup and you want to set root password
+   sudo mysql_secure_installation
+   # Then retry with -p flag: mysql -u root -p
+   
+   # Option 3: Check MySQL service is running
+   sudo systemctl status mysql
+   sudo systemctl restart mysql
    ```
 
 4. **Deploy Application Code**
@@ -479,19 +502,111 @@ Before deploying to production:
 
 ## Troubleshooting
 
+### MySQL Connection Issues
+
+**ERROR 1045 (28000): Access denied for user 'root'@'localhost'**
+
+This is common on fresh Ubuntu 20.04 installations where root authentication uses socket connections:
+
+```bash
+# Solution 1: Use sudo for root socket connection (most common)
+sudo mysql -u root
+
+# Solution 2: If you previously set a root password
+mysql -u root -p
+# Enter your password when prompted
+
+# Solution 3: Reset root password if forgotten
+sudo mysql
+ALTER USER 'root'@'localhost' IDENTIFIED BY 'new_password';
+FLUSH PRIVILEGES;
+EXIT;
+
+# Solution 4: Check MySQL service status
+sudo systemctl status mysql
+sudo systemctl restart mysql
+```
+
+**Cannot connect with 'workorder_user':**
+
+```bash
+# Verify user was created from root
+sudo mysql -u root -e "SELECT user, host FROM mysql.user WHERE user='workorder_user';"
+
+# Check user permissions
+sudo mysql -u root << EOF
+USE mysql;
+SHOW GRANTS FOR 'workorder_user'@'localhost';
+EOF
+
+# If permissions are missing, grant them
+sudo mysql -u root << EOF
+GRANT ALL PRIVILEGES ON workorder_tracking.* TO 'workorder_user'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+
+# Test connection with new user
+mysql -u workorder_user -p -e "SELECT DATABASE();"
+```
+
 ### Connection issues
-- Verify MySQL is running
+- Verify MySQL is running: `sudo systemctl status mysql`
 - Check database credentials in `.env`
-- Ensure database exists and user has permissions
+- Ensure database exists: `mysql -u workorder_user -p -e "SHOW DATABASES;"`
+- Ensure user has permissions: `sudo mysql -u root -e "SHOW GRANTS FOR 'workorder_user'@'localhost';"`
 
 ### File upload issues
-- Check `/uploads` folder permissions
+- Check `/uploads` folder permissions: `ls -la uploads/`
 - Ensure files are PDF format only
-- Check server disk space
+- Check server disk space: `df -h`
+- Check file ownership: `ls -la uploads/workorder-tracking/`
+
+### Application Won't Start
+
+```bash
+# Check Node.js version compatibility
+node -v  # should be v16.x or higher
+
+# Check dependencies are installed
+npm list --production
+
+# View PM2 logs for errors
+pm2 logs workorder-tracking
+
+# Manually test start
+node server.js
+
+# Check .env file exists and is readable
+cat /var/www/workorder-tracking/.env
+```
 
 ### Module not found
-- Run `npm install` again
-- Delete `node_modules` and reinstall: `rm -rf node_modules && npm install`
+- Run `npm install`: `npm install --production`
+- Delete and reinstall: `rm -rf node_modules && npm install --production`
+- Clear npm cache: `npm cache clean --force`
+- Check Node version: `node -v` (v16+ required)
+
+### Nginx 502 Bad Gateway
+
+```bash
+# Verify Node.js application is running
+pm2 status
+curl http://127.0.0.1:3000
+
+# Check Nginx configuration
+sudo nginx -t
+
+# View Nginx error logs
+sudo tail -f /var/log/nginx/workorder-tracking-error.log
+
+# Verify proxy setting is correct
+grep "proxy_pass" /etc/nginx/sites-available/workorder-tracking
+# Should show: proxy_pass http://127.0.0.1:3000;
+
+# Restart both services
+pm2 restart workorder-tracking
+sudo systemctl restart nginx
+```
 
 ## Future Enhancements
 
